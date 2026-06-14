@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta & Plinko Overwatch 2</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .menu-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+
+        .menu-toggle-btn {
+            background: #f99e1a;
+            color: #212a37;
+            border: 2px solid #ffffff;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .menu-options {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(21, 26, 35, 0.98);
+            border: 2px solid #f99e1a;
+            border-radius: 5px;
+            padding: 12px;
+            margin-top: 5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            width: 220px;
+        }
+
+        .menu-options.show { display: flex; }
+
+        .menu-sub-title {
+            color: #8fa3b5;
+            font-family: 'Arial', sans-serif;
+            font-size: 11px;
+            font-weight: bold;
+            margin: 5px 0 2px 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-btn {
+            background: #212a37;
+            color: #ffffff;
+            border: 1px solid #3b4b61;
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: 'Arial', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .menu-btn:hover { background: #f99e1a; color: #212a37; }
+        .menu-btn.active { background: #405275; border-color: #f99e1a; }
+
+        .btn-plinko {
+            background: #8e44ad;
+            border-color: #9b59b6;
+            font-weight: bold;
+        }
+        .btn-plinko:hover { background: #9b59b6; color: #fff; }
+        .btn-plinko.active { background: #9b59b6; border-color: #fff; color: #fff; }
+
+        .grid-giros { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+        .btn-full-width { grid-column: span 2; }
+        .menu-btn-sub {
+            background: #171e27; color: #fff; border: 1px solid #2d3a4b;
+            padding: 8px; font-size: 12px; cursor: pointer; border-radius: 3px;
+            font-family: 'Arial', sans-serif; text-align: center;
+        }
+        .menu-btn-sub:hover { border-color: #f99e1a; color: #f99e1a; }
+        .menu-btn-sub.active { background: #f99e1a; color: #212a37; border-color: #ffffff; font-weight: bold; }
+
+        /* --- FORMULARIO DE LOS SORTEOS --- */
+
+        .giveaway-form { display: none; flex-direction: column; gap: 8px; margin-top: 5px; }
+        .giveaway-form.show { display: flex; }
+        .giveaway-form label { color: #f99e1a; font-family: 'Arial', sans-serif; font-size: 12px; font-weight: bold; }
+        .giveaway-form textarea {
+            background: #12161c; color: #fff; border: 1px solid #3b4b61; border-radius: 3px;
+            padding: 5px; font-family: 'Arial', sans-serif; font-size: 12px; resize: none; height: 70px;
+        }
+        .submit-form-btn { background: #f99e1a; color: #212a37; border: none; padding: 6px; font-weight: bold; cursor: pointer; border-radius: 3px; font-family: 'Arial', sans-size: 12px; text-align: center; }
+        .toggle-br-btn { background: #342217; color: #e57c23; border: 1px solid #e57c23; padding: 8px; font-size: 12px; cursor: pointer; border-radius: 3px; font-family: 'Arial', sans-serif; font-weight: bold; text-align: center; }
+        .toggle-br-btn.active { background: #e57c23; color: #fff; box-shadow: 0 0 8px rgba(229,124,35,0.6); }
+
+        /* --- CONTENEDOR DE SELECCIONADO --- */
+
+        .main-game-area {
+            position: relative;
+            width: 530px;
+            height: 530px;
+            margin-bottom: 10px;
+        }
+
+        /* --- RULETA --- */
+
+        .wheel-container {
+            position: absolute;
+            width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .pointer {
+            position: absolute; top: -15px; z-index: 10; width: 0; height: 0;
+            border-left: 22px solid transparent; border-right: 22px solid transparent; border-top: 40px solid #f99e1a;
+            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.7));
+        }
+        .wheel-box {
+            width: 100%; height: 100%; border-radius: 50%;
+            box-shadow: 0 0 35px rgba(0,0,0,0.8); overflow: hidden; transform: rotate(0deg);
+        }
+        canvas { display: block; }
+
+        /* --- PLINKO --- */
+
+        .plinko-container {
+            position: absolute;
+            width: 100%; height: 100%;
+            display: none;
+            background: #1b222c;
+            border: 4px solid #3b4b61;
+            border-radius: 15px;
+            box-shadow: 0 0 35px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+
+        /* --- BOTONES DEL JUEGO --- */
+
+        .spin-btn, .drop-btn {
+            position: absolute;
+            width: 100px; height: 100px;
+            background: radial-gradient(circle, #ffffff 0%, #dcdcdc 100%);
+            border: 6px solid #f99e1a; border-radius: 50%;
+            color: #212a37; font-size: 24px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 20; user-select: none; transition: all 0.3s ease;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+        .spin-btn:active, .drop-btn:active { transform: translate(-50%, -50%) scale(0.92); }
+
+        .drop-btn { border-color: #9b59b6; background: radial-gradient(circle, #ffffff 0%, #ebd3f5 100%); top: 15%; width: 80px; height: 80px; font-size: 18px; }
+
+        /* --- BOTÓN CENTRAL CON EL GANADOR --- */
+
+        .center-winner {
+            position: absolute; width: 130px; height: 130px;
+            background: #212a37; border: 4px solid #f99e1a; border-radius: 50%;
+            z-index: 25; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden; box-shadow: 0 0 25px rgba(249,158,26,0.8);
+            cursor: pointer; opacity: 0; transform: translate(-50%, -50%) scale(0.5); pointer-events: none;
+            transition: all 0.4s; top: 50%; left: 50%;
+        }
+        .center-winner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+        .center-winner img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; opacity: 0.6; }
+        .center-winner-info { position: relative; z-index: 2; text-align: center; color: #fff; padding: 5px; background: rgba(21, 26, 35, 0.75); width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .center-winner-info p { margin: 0; font-size: 9px; color: #f99e1a; letter-spacing: 0.5px; }
+        .center-winner-info h3 { margin: 2px 0 0 0; font-size: 16px; text-transform: uppercase; line-height: 1.1; }
+
+        /* --- FILA UNICA CONTINUA --- */
+
+        .bottom-rack-row {
+            display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px;
+            min-height: 95px; width: auto; max-width: 100%; padding: 0 20px;
+        }
+
+        .winner-card {
+            background: #1c2430; border: 2px solid #f99e1a; border-radius: 10px;
+            padding: 10px 20px; display: flex; align-items: center; gap: 15px;
+            opacity: 0; transform: translateY(15px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.7); width: 290px; box-sizing: border-box; flex-shrink: 0;
+        }
+        .winner-card.show { opacity: 1; transform: translateY(0); }
+        .winner-avatar-box { width: 55px; height: 55px; border-radius: 6px; border: 2px solid #f99e1a; background: #253042; display: flex; justify-content: center; align-items: center; overflow: hidden; flex-shrink: 0; }
+        .winner-avatar-box img { width: 100%; height: 100%; object-fit: cover; }
+        .winner-info { color: #fff; font-family: 'Arial', sans-serif; overflow: hidden; }
+        .winner-title { font-size: 11px; color: #f99e1a; letter-spacing: 1px; margin: 0; text-transform: uppercase; font-weight: bold; }
+        .winner-name { font-size: 26px; margin: 2px 0 0 0; text-transform: uppercase; white-space: nowrap; font-family: 'Impact', sans-serif; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+
+<div class="menu-container">
+    <button class="menu-toggle-btn" id="menuToggle">⚙️ OPCIONES</button>
+    <div class="menu-options" id="menuOptions">
+        <div class="menu-sub-title">Roles de Juego</div>
+        <button class="menu-btn" id="btnTank" onclick="changeMode('tanques', this)">🛡️ Ruleta de Tanques</button>
+        <button class="menu-btn active" id="btnDps" onclick="changeMode('dps', this)">⚔️ Ruleta de DPS</button>
+        <button class="menu-btn" id="btnHealer" onclick="changeMode('healers', this)">💉 Ruleta de Healers</button>
+
+        <div class="menu-sub-title">Modos Especiales</div>
+        <button class="menu-btn btn-plinko" id="btnPlinko" onclick="changeMode('plinko', this)">🎲 SELECCIÓN DE ROL </button>
+
+        <div class="menu-sub-title" id="spinsTitle">Número de Giros</div>
+        <div class="grid-giros" id="spinsGrid">
+            <button class="menu-btn-sub active" id="spinMode1" onclick="setSpinCount(1)">1 Giro</button>
+            <button class="menu-btn-sub" id="spinMode2" onclick="setSpinCount(2)">2 Giros</button>
+            <button class="menu-btn-sub btn-full-width" id="spinMode3" onclick="setSpinCount(3)">3 Giros</button>
+        </div>
+
+        <hr style="border-color: #3b4b61; width: 100%; margin: 5px 0;">
+
+        <div class="menu-sub-title">Configurar Sorteo</div>
+        <button class="menu-btn" id="btnCustomForm" style="background: #f99e1a; color: #212a37; font-weight: bold;" onclick="toggleCustomForm()">🎁 CREAR SORTEO</button>
+
+        <div class="giveaway-form" id="giveawayForm">
+            <label for="viewerNames">Nombres:</label>
+            <textarea id="viewerNames" placeholder="Juan, Pedro, Maria..."></textarea>
+            <button class="submit-form-btn" onclick="generateCustomWheel()">Generar Ruleta</button>
+
+            <button class="toggle-br-btn" id="btnBattleRoyale" onclick="toggleBattleRoyale()">💀 ÚLTIMO EN PIE: DESACTIVADO</button>
+
+            <div style="text-align: center; font-size: 10px; color: #8fa3b5; margin-top: 2px; font-family: 'Arial', sans-serif; font-weight: bold;">
+                ACTIVAR o DESACTIVAR antes de GENERAR RULETA
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="main-game-area">
+    <div class="wheel-container" id="ruletaContainer">
+        <div class="pointer"></div>
+        <div class="spin-btn" id="spinBtn">PLAY</div>
+
+        <div class="center-winner" id="centerWinner" onclick="resetCenterBtn()">
+            <img id="centerWinnerImg" src="" alt="Winner">
+            <div class="center-winner-info">
+                <p>¡GANADOR!</p>
+                <h3 id="centerWinnerName">-</h3>
+            </div>
+        </div>
+
+        <div class="wheel-box" id="wheelBox">
+            <canvas id="wheelCanvas" width="530" height="530"></canvas>
+        </div>
+    </div>
+
+    <div class="plinko-container" id="plinkoContainer">
+        <canvas id="plinkoCanvas" width="530" height="530"></canvas>
+        <div class="drop-btn" id="dropBtn" onclick="dropPlinkoBall()">DROP</div>
+    </div>
+</div>
+
+<div class="bottom-rack-row" id="bottomRackRow"></div>
+
+<script>
+
+    // --- DATOS DE PERSONAJES RULETAS ---
+
+    const dpsHeroes = [
+        { name: "Ashe", img: "https://i.imgur.com/VPMrBbI.png" },
+        { name: "Bastion", img: "https://i.imgur.com/i42YX5r.png" },
+        { name: "Cassidy", img: "https://i.imgur.com/PELJM8p.png" },
+        { name: "Echo", img: "https://i.imgur.com/7pmIAV5.png" },
+        { name: "Genji", img: "https://i.imgur.com/g8nvRU5.png" },
+        { name: "Hanzo", img: "https://i.imgur.com/d3N2PUb.png" },
+        { name: "Junkrat", img: "https://i.imgur.com/18gFS9Q.png" },
+        { name: "Mei", img: "https://i.imgur.com/faOl0vH.png" },
+        { name: "Pharah", img: "https://i.imgur.com/WcvNhVW.png" },
+        { name: "Reaper", img: "https://i.imgur.com/VSpvtaq.png" },
+        { name: "Sojourn", img: "https://i.imgur.com/ocmAu1k.png" },
+        { name: "Soldier: 76", img: "https://i.imgur.com/kUHgmQj.png" },
+        { name: "Sombra", img: "https://i.imgur.com/PeBiD4d.png" },
+        { name: "Symmetra", img: "https://i.imgur.com/85x5oEW.png" },
+        { name: "Torbjörn", img: "https://i.imgur.com/fW4zfyD.png" },
+        { name: "Tracer", img: "https://i.imgur.com/JKPdTht.png" },
+        { name: "Venture", img: "https://i.imgur.com/K6PY7jr.png" },
+        { name: "Widowmaker", img: "https://i.imgur.com/4e0RlqC.png" },
+        { name: "Freja", img: "https://i.imgur.com/PREz3Ra.png" },
+        { name: "Emre", img: "https://i.imgur.com/trUekVL.png" },
+        { name: "Sierra", img: "https://i.imgur.com/NxJgbps.png" },
+        { name: "Vendetta", img: "https://i.imgur.com/kFfQ8t4.png" },
+        { name: "Anran", img: "https://i.imgur.com/BCLP32G.png" }
+    ];
+
+    const tankHeroes = [
+        { name: "Domina", img: "https://i.imgur.com/ry48CQu.png" },
+        { name: "D.Va", img: "https://i.imgur.com/wCTJ5KS.png" },
+        { name: "Doomfist", img: "https://i.imgur.com/iPvTFeq.png" },
+        { name: "Junker Queen", img: "https://i.imgur.com/gybYhiB.png" },
+        { name: "Mauga", img: "https://i.imgur.com/UMRN82n.png" },
+        { name: "Orisa", img: "https://i.imgur.com/p5I6VBp.png" },
+        { name: "Ramattra", img: "https://i.imgur.com/V9yQtdS.png" },
+        { name: "Reihnardt", img: "https://i.imgur.com/s8BNe0H.png" },
+        { name: "Roadhog", img: "https://i.imgur.com/7SU1600.png" },
+        { name: "Sigma", img: "https://i.imgur.com/NsZKVWT.png" },
+        { name: "Winston", img: "https://i.imgur.com/B6fvKDf.png" },
+        { name: "Wrecking Ball", img: "https://i.imgur.com/CcmE99s.png" },
+        { name: "Zarya", img: "https://i.imgur.com/IHhcgxB.png" }
+    ];
+
+    const healerHeroes = [
+        { name: "Ana", img: "https://i.imgur.com/Zbw362Q.png" },
+        { name: "Baptiste", img: "https://i.imgur.com/9K4gZ4c.png" },
+        { name: "Brigitte", img: "https://i.imgur.com/VTtoIRj.png" },
+        { name: "Illari", img: "https://i.imgur.com/gkoxlFI.png" },
+        { name: "Jetpack Cat", img: "https://i.imgur.com/ytCnT3C.png" },
+        { name: "Juno", img: "https://i.imgur.com/n2UHW9g.png" },
+        { name: "Kiriko", img: "https://i.imgur.com/3WBsWKd.png" },
+        { name: "Lifeweaver", img: "https://i.imgur.com/LZjbjCd.png" },
+        { name: "Lúcio", img: "https://i.imgur.com/PPiwkq9.png" },
+        { name: "Mercy", img: "https://i.imgur.com/FbEjDN7.png" },
+        { name: "MIZUKI", img: "https://i.imgur.com/7o93iQy.png" },
+        { name: "Moira", img: "https://i.imgur.com/HG2jYo5.png" },
+        { name: "Wuyang", img: "https://i.imgur.com/3iaWT6v.png" },
+        { name: "Zenyatta", img: "https://i.imgur.com/8mkLKLz.png" }
+    ];
+
+    let currentPool = [...dpsHeroes];
+    let currentModeName = "HÉROE SELECCIONADO";
+    let activeSystem = "ruleta";
+    let targetSpins = 1;
+    let isBattleRoyaleActive = false;
+    let isSpinning = false;
+    let currentAngle = 0;
+
+    // --- AUDIO ---
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSpinSound() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    function playWinSound() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(520, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    function playPegHitSound() {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.type = 'square'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.03);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.03);
+    }
+
+    // --- DOM ELEMENTS ---
+
+    const canvas = document.getElementById("wheelCanvas"); const ctx = canvas.getContext("2d");
+    const wheelBox = document.getElementById("wheelBox"); const spinBtn = document.getElementById("spinBtn");
+    const bottomRackRow = document.getElementById("bottomRackRow");
+    const centerWinner = document.getElementById("centerWinner");
+    const centerWinnerName = document.getElementById("centerWinnerName");
+    const centerWinnerImg = document.getElementById("centerWinnerImg");
+
+    const menuToggle = document.getElementById("menuToggle"); const menuOptions = document.getElementById("menuOptions");
+    const giveawayForm = document.getElementById("giveawayForm"); const viewerNamesInput = document.getElementById("viewerNames");
+    const btnBattleRoyale = document.getElementById("btnBattleRoyale");
+
+    const ruletaContainer = document.getElementById("ruletaContainer");
+    const plinkoContainer = document.getElementById("plinkoContainer");
+    const spinsGrid = document.getElementById("spinsGrid");
+    const spinsTitle = document.getElementById("spinsTitle");
+
+    // --- INTERFAZ EVENTOS ---
+
+    menuToggle.addEventListener("click", () => menuOptions.classList.toggle("show"));
+    function toggleCustomForm() { giveawayForm.classList.toggle("show"); }
+
+    function setSpinCount(count) {
+        if (isSpinning) return;
+        targetSpins = count;
+        document.querySelectorAll('.menu-btn-sub').forEach(b => b.classList.remove('active'));
+        document.getElementById(`spinMode${count}`).classList.add('active');
+        if (count > 1 && isBattleRoyaleActive) toggleBattleRoyale();
+    }
+
+    function toggleBattleRoyale() {
+        if (isSpinning) return;
+        isBattleRoyaleActive = !isBattleRoyaleActive;
+        if (isBattleRoyaleActive) {
+            btnBattleRoyale.classList.add("active"); btnBattleRoyale.innerText = "💀 ÚLTIMO EN PIE: ACTIVADO";
+            setSpinCount(1);
+        } else {
+            btnBattleRoyale.classList.remove("active"); btnBattleRoyale.innerText = "💀 ÚLTIMO EN PIE: DESACTIVADO";
+        }
+    }
+
+    function changeMode(mode, element) {
+        if (isSpinning || plinkoBall.active) return;
+        document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+        element.classList.add('active');
+        giveawayForm.classList.remove("show");
+        clearAllResults();
+        resetCenterBtn();
+
+        if (mode === 'plinko') {
+            activeSystem = "plinko";
+            ruletaContainer.style.display = "none";
+            plinkoContainer.style.display = "block";
+            spinsGrid.style.display = "none";
+            spinsTitle.style.display = "none";
+            initPlinko();
+            return;
+        }
+
+        activeSystem = "ruleta";
+        ruletaContainer.style.display = "flex";
+        plinkoContainer.style.display = "none";
+        spinsGrid.style.display = "grid";
+        spinsTitle.style.display = "block";
+
+        if (mode === 'tanques') { currentPool = [...tankHeroes]; currentModeName = "TANQUE SELECCIONADO"; }
+        else if (mode === 'dps') { currentPool = [...dpsHeroes]; currentModeName = "HÉROE SELECCIONADO"; }
+        else if (mode === 'healers') { currentPool = [...healerHeroes]; currentModeName = "HEALER SELECCIONADO"; }
+
+        if(isBattleRoyaleActive) toggleBattleRoyale();
+        drawWheel();
+    }
+
+    function generateCustomWheel() {
+        if (isSpinning || plinkoBall.active) return;
+        const text = viewerNamesInput.value;
+        if (!text || text.trim() === "") return;
+        const namesArray = text.split(/[,\n]+/).map(n => n.trim()).filter(n => n !== "");
+        if (namesArray.length === 0) return;
+
+        currentPool = namesArray.map(name => ({ name: name, img: "https://i.imgur.com/FLkikRQ.png" }));
+        document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btnCustomForm').classList.add('active');
+        clearAllResults(); resetCenterBtn();
+
+        activeSystem = "ruleta";
+        ruletaContainer.style.display = "flex";
+        plinkoContainer.style.display = "none";
+        currentModeName = "¡GANADOR DEL SORTEO!";
+        menuOptions.classList.remove("show");
+        drawWheel();
+    }
+
+    // --- LÓGICA DE LA RULETA ---
+
+    const size = canvas.width; const center = size / 2; const colors = ["#1b222c", "#ffffff", "#3b4b61"];
+    function drawWheel() {
+        const numSegments = currentPool.length;
+        ctx.clearRect(0, 0, size, size);
+        if (numSegments === 0) return;
+
+        const anglePerSegment = (2 * Math.PI) / numSegments;
+        for (let i = 0; i < numSegments; i++) {
+            const angle = i * anglePerSegment;
+            ctx.beginPath(); ctx.fillStyle = colors[i % colors.length];
+            ctx.moveTo(center, center); ctx.arc(center, center, center, angle, angle + anglePerSegment); ctx.lineTo(center, center); ctx.fill();
+
+            ctx.save(); ctx.translate(center, center); ctx.rotate(angle + anglePerSegment / 2);
+            ctx.textAlign = "right"; ctx.fillStyle = (colors[i % colors.length] === "#ffffff") ? "#1b222c" : "#ffffff";
+            let fontSize = numSegments > 20 ? "10px" : "11px"; if (numSegments > 40) fontSize = "8px";
+            ctx.font = `bold ${fontSize} Arial`;
+            let displayName = currentPool[i].name.toUpperCase();
+            if (displayName.length > 12) displayName = displayName.substring(0, 11) + "...";
+            ctx.fillText(displayName, center - 35, 4); ctx.restore();
+        }
+    }
+
+    function resetCenterBtn() {
+        centerWinner.classList.remove("show");
+        spinBtn.style.opacity = "1"; spinBtn.style.pointerEvents = "auto";
+        document.getElementById("dropBtn").style.opacity = "1"; document.getElementById("dropBtn").style.pointerEvents = "auto";
+    }
+
+    function clearAllResults() { bottomRackRow.innerHTML = ""; }
+
+    function animateToTarget(targetHeroName) {
+        return new Promise((resolve) => {
+            const totalSegments = currentPool.length;
+            const targetIdx = currentPool.findIndex(h => h.name === targetHeroName);
+            const anglePerSegment = (Math.PI * 2) / totalSegments;
+            const currentNormalizedAngle = currentAngle % (Math.PI * 2);
+            const targetPosRad = (Math.PI * 1.5) - (targetIdx * anglePerSegment) - (anglePerSegment / 2);
+
+            let deltaAngle = targetPosRad - currentNormalizedAngle;
+            if (deltaAngle <= 0) deltaAngle += (Math.PI * 2);
+            const totalRotationNeeded = deltaAngle + (Math.PI * 2 * 6);
+
+            const duration = 6200; const startTime = performance.now(); const startAngle = currentAngle;
+            let lastSegmentIdx = -1;
+
+            function update(now) {
+                const elapsed = now - startTime;
+                const t = Math.min(elapsed / duration, 1);
+                const progress = 1 - Math.pow(1 - t, 5);
+
+                currentAngle = startAngle + (totalRotationNeeded * progress);
+                wheelBox.style.transform = `rotate(${currentAngle * (180 / Math.PI)}deg)`;
+
+                const currentWheelRotationRad = currentAngle % (Math.PI * 2);
+                let visualPointerAngle = (Math.PI * 1.5 - currentWheelRotationRad + Math.PI * 2) % (Math.PI * 2);
+                const currentSegmentIdx = Math.floor(visualPointerAngle / anglePerSegment);
+
+                if (currentSegmentIdx !== lastSegmentIdx && t < 0.995) { playSpinSound(); lastSegmentIdx = currentSegmentIdx; }
+
+                if (t < 1) requestAnimationFrame(update);
+                else {
+                    currentAngle = startAngle + totalRotationNeeded;
+                    wheelBox.style.transform = `rotate(${currentAngle * (180 / Math.PI)}deg)`;
+                    resolve(currentPool[targetIdx]);
+                }
+            }
+            requestAnimationFrame(update);
+        });
+    }
+
+    // --- FUNCIÓN ACTUALIZADA: Recibe un parámetro 'replaceCurrent' para limpiar la fila ---
+    function appendRackCard(item, titleText, overrideColor, replaceCurrent = false) {
+        if (replaceCurrent) {
+            bottomRackRow.innerHTML = ""; // Limpiamos la tarjeta anterior
+        }
+
+        const card = document.createElement("div");
+        card.className = "winner-card";
+        let borderColor = overrideColor ? overrideColor : "#f99e1a";
+        card.style.borderColor = borderColor;
+
+        card.innerHTML = `
+            <div class="winner-avatar-box" style="border-color: ${borderColor}">
+                <img src="${item.img}" alt="Resultado">
+            </div>
+            <div class="winner-info">
+                <p class="winner-title" style="color: ${borderColor}">${titleText}</p>
+                <h2 class="winner-name">${item.name}</h2>
+            </div>
+        `;
+        bottomRackRow.appendChild(card);
+        setTimeout(() => card.classList.add("show"), 50);
+    }
+
+    async function handleSpinFlow() {
+        if (isSpinning || currentPool.length === 0) return;
+        isSpinning = true; clearAllResults(); resetCenterBtn();
+
+        if (!isBattleRoyaleActive) {
+            // --- MODO NORMAL ---
+            let temporaryPool = [...currentPool]; let finalWinner = null;
+            for (let currentGiro = 0; currentGiro < targetSpins; currentGiro++) {
+                if (temporaryPool.length === 0) break;
+
+                const randomSegment = Math.floor(Math.random() * temporaryPool.length);
+                const winner = await animateToTarget(temporaryPool[randomSegment].name);
+                finalWinner = winner;
+
+                let tagTitle = targetSpins === 1 ? currentModeName : `GIRO #${currentGiro + 1}`;
+
+                // En modo normal (1, 2, o 3 giros) apilamos las tarjetas, no las borramos (replace = false)
+                appendRackCard(winner, tagTitle, null, false);
+                temporaryPool = temporaryPool.filter(item => item.name !== winner.name);
+
+                if (currentGiro < targetSpins - 1) await new Promise(resolve => setTimeout(resolve, 900));
+            }
+            if (finalWinner) {
+                playWinSound(); spinBtn.style.opacity = "0"; spinBtn.style.pointerEvents = "none";
+                centerWinnerName.innerText = finalWinner.name; centerWinnerImg.src = finalWinner.img; centerWinner.classList.add("show");
+            }
+            isSpinning = false;
+
+        } else {
+            // --- MODO BATTLE ROYALE (Último en Pie) ---
+            let totalPlayers = currentPool.length;
+            if (totalPlayers <= 1) { isSpinning = false; return; }
+
+            // Giramos hasta que solo quede 1 participante
+            while (currentPool.length > 1) {
+                const randomSegment = Math.floor(Math.random() * currentPool.length);
+                const eliminated = await animateToTarget(currentPool[randomSegment].name);
+
+                // Mostramos al eliminado y borramos la tarjeta anterior (replace = true) con color rojo
+                appendRackCard(eliminated, "ELIMINADO", "#e74c3c", true);
+
+                // Eliminamos al participante de la ruleta y redibujamos
+                currentPool = currentPool.filter(item => item.name !== eliminated.name);
+                drawWheel();
+
+                // Pausa antes del siguiente giro
+                if (currentPool.length > 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                }
+            }
+
+            // Ha quedado 1 solo participante (El Ganador)
+            let finalWinner = currentPool[0];
+
+            // Reemplazamos la última tarjeta de eliminado por la del ganador con color verde
+            appendRackCard(finalWinner, "¡GANADOR!", "#2ecc71", true);
+
+            playWinSound(); spinBtn.style.opacity = "0"; spinBtn.style.pointerEvents = "none";
+            centerWinnerName.innerText = finalWinner.name; centerWinnerImg.src = finalWinner.img; centerWinner.classList.add("show");
+
+            isSpinning = false;
+        }
+    }
+
+    // --- LÓGICA DEL PLINKO MODIFICADA (Física Natural y Configuración de Roles) ---
+    const pCanvas = document.getElementById("plinkoCanvas");
+    const pCtx = pCanvas.getContext("2d");
+    let pegs = [];
+
+    const roleConfig = [
+        { role: "DPS", color: "#f99e1a", img: "https://i.imgur.com/JKPdTht.png" },    // 0: Extremo Izquierdo
+        { role: "HEALER", color: "#2ecc71", img: "https://i.imgur.com/Zbw362Q.png" }, // 1
+        { role: "TANQUE", color: "#3b4b61", img: "https://i.imgur.com/wCTJ5KS.png" }, // 2
+        { role: "HEALER", color: "#2ecc71", img: "https://i.imgur.com/FbEjDN7.png" }, // 3
+        { role: "DPS", color: "#f99e1a", img: "https://i.imgur.com/VPMrBbI.png" },    // 4: Centro exacto
+        { role: "TANQUE", color: "#3b4b61", img: "https://i.imgur.com/s8BNe0H.png" }, // 5
+        { role: "HEALER", color: "#2ecc71", img: "https://i.imgur.com/PPiwkq9.png" }, // 6
+        { role: "TANQUE", color: "#3b4b61", img: "https://i.imgur.com/p5I6VBp.png" }, // 7
+        { role: "DPS", color: "#f99e1a", img: "https://i.imgur.com/VSpvtaq.png" }     // 8: Extremo Derecho
+    ];
+
+    let plinkoBall = { x: 265, y: 15, vx: 0, vy: 0, radius: 6, active: false };
+
+    function initPlinko() {
+        pegs = [];
+        const numRows = 16; const pegSpacingY = 26; const pegSpacingX = 28; const startY = 60;
+
+        for (let row = 0; row < numRows; row++) {
+            const numCols = row % 2 === 0 ? 17 : 18;
+            const startX = (530 - (numCols - 1) * pegSpacingX) / 2;
+            for (let col = 0; col < numCols; col++) {
+                pegs.push({ x: startX + col * pegSpacingX, y: startY + row * pegSpacingY, radius: 3.5 });
+            }
+        }
+        drawPlinkoScene();
+    }
+
+    function drawPlinkoScene() {
+        pCtx.clearRect(0, 0, 530, 530);
+
+        pCtx.fillStyle = "#ffffff";
+        pegs.forEach(p => {
+            pCtx.beginPath(); pCtx.arc(p.x, p.y, p.radius, 0, Math.PI*2); pCtx.fill();
+            pCtx.shadowBlur = 4; pCtx.shadowColor = "#ffffff";
+        });
+        pCtx.shadowBlur = 0;
+
+        const bucketWidth = 530 / 9;
+        const bucketHeight = 50;
+        for(let i=0; i<9; i++) {
+            let b = roleConfig[i];
+            pCtx.fillStyle = b.color;
+            pCtx.fillRect(i * bucketWidth, 530 - bucketHeight, bucketWidth, bucketHeight);
+
+            pCtx.fillStyle = "#ffffff";
+            pCtx.font = "bold 12px Impact";
+            pCtx.textAlign = "center";
+            pCtx.fillText(b.role, i * bucketWidth + bucketWidth/2, 530 - 15);
+
+            pCtx.strokeStyle = "#1b222c";
+            pCtx.lineWidth = 3;
+            pCtx.beginPath(); pCtx.moveTo(i * bucketWidth, 530 - bucketHeight); pCtx.lineTo(i * bucketWidth, 530); pCtx.stroke();
+        }
+
+        if(plinkoBall.active) {
+            pCtx.beginPath();
+            pCtx.arc(plinkoBall.x, plinkoBall.y, plinkoBall.radius, 0, Math.PI*2);
+            pCtx.fillStyle = "#f99e1a";
+            pCtx.fill();
+            pCtx.lineWidth = 2; pCtx.strokeStyle = "#ffffff"; pCtx.stroke();
+        }
+    }
+
+    function dropPlinkoBall() {
+        if(plinkoBall.active) return;
+        clearAllResults();
+        document.getElementById("dropBtn").style.opacity = "0";
+        document.getElementById("dropBtn").style.pointerEvents = "none";
+
+        plinkoBall.x = 265 + (Math.random() - 0.5) * 15;
+        plinkoBall.y = 15; plinkoBall.vx = 0; plinkoBall.vy = 0.5;
+        plinkoBall.active = true;
+        requestAnimationFrame(updatePlinkoPhysics);
+    }
+
+    function updatePlinkoPhysics() {
+        if(!plinkoBall.active) return;
+
+        const subSteps = 3;
+        const gravity = 0.015;
+        const bounce = 0.5;
+        const maxVelocity = 2.0;
+
+        for(let step = 0; step < subSteps; step++) {
+            plinkoBall.vy += gravity;
+
+            plinkoBall.vx *= 0.99;
+            plinkoBall.vy *= 0.99;
+
+            if (plinkoBall.vy > maxVelocity) {
+                plinkoBall.vy = maxVelocity;
+            }
+
+            plinkoBall.x += plinkoBall.vx;
+            plinkoBall.y += plinkoBall.vy;
+
+            if(plinkoBall.x < plinkoBall.radius) { plinkoBall.x = plinkoBall.radius; plinkoBall.vx *= -bounce; }
+            if(plinkoBall.x > 530 - plinkoBall.radius) { plinkoBall.x = 530 - plinkoBall.radius; plinkoBall.vx *= -bounce; }
+
+            let hit = false;
+            pegs.forEach(peg => {
+                let dx = plinkoBall.x - peg.x; let dy = plinkoBall.y - peg.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let minDist = plinkoBall.radius + peg.radius;
+
+                if(dist < minDist) {
+                    let nx = dx / dist; let ny = dy / dist;
+                    let overlap = minDist - dist;
+                    plinkoBall.x += nx * overlap; plinkoBall.y += ny * overlap;
+
+                    let dot = plinkoBall.vx * nx + plinkoBall.vy * ny;
+                    plinkoBall.vx -= 2 * dot * nx; plinkoBall.vy -= 2 * dot * ny;
+
+                    plinkoBall.vx *= bounce; plinkoBall.vy *= bounce;
+
+                    plinkoBall.vx += (Math.random() - 0.5) * 0.9;
+                    hit = true;
+                }
+            });
+            if(hit) playPegHitSound();
+        }
+
+        if(plinkoBall.y > 530 - 50) {
+            plinkoBall.active = false;
+            let index = Math.floor(plinkoBall.x / (530 / 9));
+            if(index < 0) index = 0; if(index > 8) index = 8;
+            let result = roleConfig[index];
+
+            playWinSound();
+            document.getElementById("dropBtn").style.opacity = "1";
+            document.getElementById("dropBtn").style.pointerEvents = "auto";
+
+            let fakeItem = { name: result.role, img: result.img };
+            // También se asegura de reemplazar cualquier tarjeta previa aquí
+            appendRackCard(fakeItem, "ROL ASIGNADO", result.color, true);
+        }
+
+        drawPlinkoScene();
+        if(plinkoBall.active) requestAnimationFrame(updatePlinkoPhysics);
+    }
+
+    spinBtn.addEventListener("click", handleSpinFlow);
+    drawWheel();
+</script>
+</body>
+</html>
